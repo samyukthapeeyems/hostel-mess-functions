@@ -4,40 +4,52 @@ import functions from "firebase-functions";
 
 export async function createOrder(itemList, userId) {
     const db = getFirestore();
-        //   functions.logger.log(db)
 
     let result = [];
 
     try {
 
-        const docRef = db.collection('items').doc('alovelace');
+        // get all items from firestore with the key 
+        let itemPromiseList = []
 
-        await docRef.set({
-            first: 'Ada',
-            last: 'Lovelace',
-            born: 1815
-        });
-
-        const snapShot = await db.collection('items').doc('mHshUOjCEgETWxAx2eFX').get()
-        // let snapShot = await itemC.get()
-        // where("name", "==", "meal").get();
+        itemList.forEach(item => {
+            let itemPromise = db.collection('items').doc(item).get();
+            itemPromiseList.push(itemPromise);
+        })
 
 
-        if (snapShot.empty) {
-            functions.logger.log('No matching documents.');
+        let itemSnapShotList = await Promise.all(itemPromiseList);
+        // 
+        functions.logger.log("snapshot", itemSnapShotList[0].data())
+        let totalPrice = 0
+
+
+        for (let snapShot of itemSnapShotList) {
+
+            if (snapShot.exists == false) {
+                return {
+                    message: "Invalid item_id in list items"
+                }
+            }
+
+            let data = snapShot.data();
+
+            
+            if (data.isAvailable == false) {
+                return {
+                    message: `Item ${data.name} isn't available`
+                }
+            }
+
+
+            totalPrice += parseInt(data.price)
         }
 
 
 
-        // snapShot.forEach(doc => {
-
-        //     functions.logger.log(doc);
-
-        //     result.push(doc.data());
-        // })
-        functions.logger.log(snapShot.data());
-
-        return result;
+        return {
+            totalPrice
+        }
     }
     catch (e) {
         throw e;
