@@ -17,10 +17,9 @@ export async function createOrder(itemList, userId) {
             itemPromiseList.push(itemPromise);
         })
 
-
+        // get all resolved promises from itemPromiseList to itemSnapShotList
         let itemSnapShotList = await Promise.all(itemPromiseList);
-        // 
-        functions.logger.log("snapshot", itemSnapShotList[0].data())
+        
         let totalPrice = 0
 
 
@@ -41,10 +40,19 @@ export async function createOrder(itemList, userId) {
                 }
             }
 
-
             totalPrice += parseInt(data.price)
         }
 
+
+        const order = await db.collection('orders').add({
+            items: itemList.map(item => `/items/${item}`),
+            placed_at : new Date(),
+            status : "Completed",
+            total_amount : totalPrice,
+            user: "qwe4r5t6uykjhgra"
+        })
+
+        functions.logger.log("Added order ", order.id);
 
 
         return {
