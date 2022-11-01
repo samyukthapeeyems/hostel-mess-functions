@@ -20,9 +20,8 @@ export async function createOrder(itemList, userId) {
 
         let itemSnapShotList = await Promise.all(itemPromiseList);
         // 
-        functions.logger.log("snapshot", itemSnapShotList[0].data())
-        let totalPrice = 0
 
+        let totalPrice = 0
 
         for (let snapShot of itemSnapShotList) {
 
@@ -34,18 +33,40 @@ export async function createOrder(itemList, userId) {
 
             let data = snapShot.data();
 
-            
+
             if (data.isAvailable == false) {
                 return {
                     message: `Item ${data.name} isn't available`
                 }
             }
-
-
+            
             totalPrice += parseInt(data.price)
         }
+        //
+
+        const order = db.collection('orders').add({
+            items: itemList.map(item => `/items/${item}`),
+            placed_at: new Date(),
+            status: "Completed",
+            total_amount: totalPrice,
+            user: "eritei54753"
+        })
 
 
+        const currentDate = new Date();
+        const firstDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const lastDate = new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 0);
+        
+        const result = await db.collection('dues').where("user", "==", "eritei54753").where("period", ">=", firstDate).where("period", "<", lastDate).where("status", "==", "unsettled").get();
+
+
+        if(result.empty()){
+            db.collection('dues').add()
+        }
+
+        else{
+            db.collection('dues').doc(result.id)
+        }
 
         return {
             totalPrice
@@ -56,7 +77,17 @@ export async function createOrder(itemList, userId) {
     }
 }
 
-export function cancelOrder() { }
+export async function addDue() {
+    try {
+        let res = []
+
+        return res
+
+    }
+    catch (e) {
+        throw e;
+    }
+}
 
 export function updateStatus() { }
 

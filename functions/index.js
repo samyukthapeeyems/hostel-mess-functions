@@ -28,12 +28,26 @@ const app = initializeApp({
 
 
 
-import { createOrder } from "./order.js";
+import { createOrder ,addDue } from "./order.js";
 
 
 export const createOrderx = functions.https.onRequest(async (req, res) => {
     try {
         let result = await createOrder(req.body.items, null);
+
+        functions.logger.log("result", result)
+
+        res.json(result);
+    }
+    catch (e) {
+        res.json(e);
+    }
+})
+
+
+export const addDuex = functions.https.onRequest(async (req, res) => {
+    try {
+        let result = await addDue();
 
         functions.logger.log("result", result)
 
