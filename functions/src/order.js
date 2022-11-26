@@ -1,24 +1,15 @@
 import { getFirestore, Timestamp, FieldValue, FieldPath } from 'firebase-admin/firestore';
 import functions from "firebase-functions";
-
+import { getItemSnapShotList } from './item.js';
+import { _date } from './util.js';
 
 export async function createOrder(itemList, userId) {
     const db = getFirestore();
 
-    let result = [];
-
     try {
 
-        // get all items from firestore with the key 
-        let itemPromiseList = []
-
-        itemList.forEach(item => {
-            let itemPromise = db.collection('items').doc(item).get();
-            itemPromiseList.push(itemPromise);
-        })
-
         // get all resolved promises from itemPromiseList to itemSnapShotList
-        let itemSnapShotList = await Promise.all(itemPromiseList);
+        let itemSnapShotList = await getItemSnapShotList();
         // 
 
         let totalPrice = 0
@@ -39,7 +30,7 @@ export async function createOrder(itemList, userId) {
                     message: `Item ${data.name} isn't available`
                 }
             }
-            
+
             totalPrice += parseInt(data.price)
         }
         //
@@ -53,20 +44,21 @@ export async function createOrder(itemList, userId) {
         })
 
 
-        const currentDate = new Date();
-        const firstDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const lastDate = new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 0);
-        
-        const result = await db.collection('dues').where("user", "==", "eritei54753").where("period", ">=", firstDate).where("period", "<", lastDate).where("status", "==", "unsettled").get();
+
+        const result = await db.collection('dues')
+            .where("user", "==", "eritei54753")
+            .where("period", ">=", _date().firstDate)
+            .where("period", "<", _date().lastDate)
+            .where("status", "==", "unsettled").get();
 
         // let res = [];
         // result.forEach(x => res.push(x.data()))
         // functions.logger.log("result ts", res)
-//
+        //
         //
         functions.logger.log("due result", result.docs);
 
-        if(result.empty){
+        if (result.empty) {
             functions.logger.log("due list empty")
             await db.collection('dues').add({
                 amount: totalPrice,
@@ -77,8 +69,7 @@ export async function createOrder(itemList, userId) {
         }
 
         //
-        else{
-            
+        else {
 
             await db.collection('dues').doc(result.docs[0].id).update({
                 amount: result.docs[0].data().amount + totalPrice
@@ -94,17 +85,6 @@ export async function createOrder(itemList, userId) {
     }
 }
 
-export async function addDue() {
-    try {
-        let res = []
 
-        return res
-
-    }
-    catch (e) {
-        throw e;
-    }
-}
-
-export function updateStatus() { }
+//export function updateStatus() { }
 

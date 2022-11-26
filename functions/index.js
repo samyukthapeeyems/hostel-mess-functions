@@ -1,61 +1,60 @@
 import * as functions from "firebase-functions";
-import { initializeApp, cert , getApps } from "firebase-admin/app";
+import { initializeApp, cert } from "firebase-admin/app";
+import { createOrder } from "./src/order.js";
+import { getAuth } from "firebase-admin/auth";
+import { addItemImage } from "./src/item.js";
 // import serviceAccount from "../service_account.json";
-
 
 
 
 import { createRequire } from "module"; // Bring in the ability to create the 'require' method
 const require = createRequire(import.meta.url); // construct the require method
-const serviceAccount = require("../service_account.json") // use the require method
+const serviceAccount = require("./service_account.json") // use the require method
 
 
-
-
-// // Create and Deploy Your First Cloud Functions
-// // https://firebase.google.com/docs/functions/write-firebase-functions
-//
-// exports.helloWorld = functions.https.onRequest((request, response) => {
-//   functions.logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
-
-const app = initializeApp({
+initializeApp({
     credential: cert(serviceAccount)
 });
 
+//changing region 
 
+let regionalFunction = functions.region('asia-south1');
 
-
-
-import { createOrder ,addDue } from "./order.js";
-
-
-export const createOrderx = functions.https.onRequest(async (req, res) => {
-    try {
-        let result = await createOrder(req.body.items, null);
-
-        functions.logger.log("result", result)
-
-        res.json(result);
+export const processUserSignUp = regionalFunction.auth.user().onCreate(async (user) => {
+    
+    try{
+        await getAuth().setCustomUserClaims(user.uid, {
+            roles: ["hosteler", "student"]
+        })
+    
+        
+        return Promise.resolve()
     }
-    catch (e) {
-        res.json(e);
+    catch(e){
+        functions.logger.log("auth role... failed")
+        return Promise.reject("auth role... failed")
     }
+ 
 })
 
+async function setRole(uid,roles){
+    await getAuth().setCustomUserClaims(uid, {
+        roles: roles
+    })
+}
 
-export const addDuex = functions.https.onRequest(async (req, res) => {
-    try {
-        let result = await addDue();
+//setRole("9bKbE6JvgdeZiPbLG324l83U2oF3",["admin"])
 
-        functions.logger.log("result", result)
+export const addImage = functions.storage.object().onFinalize(obj => addItemImage(obj));
+// export const createOrderx = functions.https.onCall(async (data, context) => {
+//     try {
+//         let result = await createOrder(data.order, context.);
+//         functions.logger.log("result", result)
 
-        res.json(result);
-    }
-    catch (e) {
-        res.json(e);
-    }
-})
-
+//         res.json(result);
+//     }
+//     catch (e) {
+//         res.json(e);
+//     }
+// })
 
