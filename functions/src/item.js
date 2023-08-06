@@ -5,16 +5,14 @@ import { getFirestore, Timestamp, FieldValue, FieldPath } from 'firebase-admin/f
 
 export async function getItemSnapShotList(itemList) {
     let db = getFirestore();
-    let itemPromiseList = [];
+    let itemIdList = itemList.map(item => item.id);
 
-    itemList.forEach(item => {
-        let itemPromise = db.collection('items').doc(item).get();
-        itemPromiseList.push(itemPromise);
-    })
+    let resultSnapShot = await db
+        .collection('items')
+        .where(FieldPath.documentId(), 'in', itemIdList)
+        .get()
 
-    // get all resolved promises from itemPromiseList to itemSnapShotList
-    let itemSnapShotList = await Promise.all(itemPromiseList);
-    return itemSnapShotList;
+    return resultSnapShot;
 }
 
 
@@ -27,4 +25,13 @@ export async function addItemImage(obj) {
 
 }
 
+
+
+export async function buildItemBundle() {
+    let db = getFirestore();
+    const items = await db.collection('items').get();
+    const bundleBuffer = db.bundle('latest-stories').add('itemBundle', items).build();
+    return bundleBuffer;
+
+}
 // change git conf

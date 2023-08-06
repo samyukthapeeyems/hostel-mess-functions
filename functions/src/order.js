@@ -9,21 +9,21 @@ export async function createOrder(itemList, userId) {
     try {
 
         // get all resolved promises from itemPromiseList to itemSnapShotList
-        let itemSnapShotList = await getItemSnapShotList();
+        let itemSnapShotList = await getItemSnapShotList(itemList);
         // 
-
         let totalPrice = 0
 
-        for (let snapShot of itemSnapShotList) {
 
-            if (snapShot.exists == false) {
-                return {
-                    message: "Invalid item_id in list items"
-                }
-            }
+        for (let item of itemSnapShotList.docs) {
 
-            let data = snapShot.data();
+            // if (snapShot?.exists == false) {
+            //     return {
+            //         message: "Invalid item_id in list items"
+            //     }
+            // }
 
+            let id = item.id
+            let data = item.data();
 
             if (data.isAvailable == false) {
                 return {
@@ -31,52 +31,60 @@ export async function createOrder(itemList, userId) {
                 }
             }
 
-            totalPrice += parseInt(data.price)
+            let { quantity } = itemList.find(_item => _item.id === id)
+            totalPrice += data.price * quantity
         }
         //
 
-        const order = db.collection('orders').add({
-            items: itemList.map(item => `/items/${item}`),
+        const order = await db.collection('orders').add({
+            items: itemList.map(item => {
+                return {
+                    itemId: `/items/${item.id}`,
+                    quantity: item.quantity
+                }
+            }),
+            itemCount: itemList.length,
             placed_at: new Date(),
-            status: "Completed",
+            status: "Pending",
             total_amount: totalPrice,
-            user: "eritei54753"
+            user: userId
         })
 
 
 
-        const result = await db.collection('dues')
-            .where("user", "==", "eritei54753")
-            .where("period", ">=", _date().firstDate)
-            .where("period", "<", _date().lastDate)
-            .where("status", "==", "unsettled").get();
+        // const result = await db.collection('dues')
+        //     .where("user", "==", "eritei54753")
+        //     .where("period", ">=", _date().firstDate)
+        //     .where("period", "<", _date().lastDate)
+        //     .where("status", "==", "unsettled").get();
 
         // let res = [];
         // result.forEach(x => res.push(x.data()))
         // functions.logger.log("result ts", res)
         //
         //
-        functions.logger.log("due result", result.docs);
+        // functions.logger.log("due result", result.docs);
 
-        if (result.empty) {
-            functions.logger.log("due list empty")
-            await db.collection('dues').add({
-                amount: totalPrice,
-                period: new Date(),
-                status: "unsettled",
-                user: "eritei54753"
-            })
-        }
+        // if (result.empty) {
+        //     functions.logger.log("due list empty")
+        //     await db.collection('dues').add({
+        //         amount: totalPrice,
+        //         period: new Date(),
+        //         status: "unsettled",
+        //         user: "eritei54753"
+        //     })
+        // }
 
         //
-        else {
+        // else {
 
-            await db.collection('dues').doc(result.docs[0].id).update({
-                amount: result.docs[0].data().amount + totalPrice
-            })
-        }
+        //     await db.collection('dues').doc(result.docs[0].id).update({
+        //         amount: result.docs[0].data().amount + totalPrice
+        //     })
+        // }
 
         return {
+            orderId: order.id,
             totalPrice
         }
     }
@@ -87,4 +95,41 @@ export async function createOrder(itemList, userId) {
 
 
 //export function updateStatus() { }
+
+
+
+
+export async function summarizeDailyOrder() {
+
+    let summary = {
+        items: [],
+        totalRevenue : 0 ,
+        completedOrders : 0,
+        pendingOrders : 0 ,
+        offlineOrders : 0,
+        onlineOrders : 0
+    }
+
+    const db = getFirestore();
+
+    let r = await db.collection('orders').where('placed_at', '==', new Date()).where('status', '==', 'PAID').get()
+
+    let orderSnapshots = r.docs
+    orderSnapshots.forEach(order => {
+
+        order.items.forEach(item => {
+
+            let index = summary.items.findIndex(_item => _item.id === item.id)
+            if (index !== -1){
+                summary.items[index].quantity = item.qunatity
+                
+            }
+            else
+                summary.items.push(item)
+        })
+
+    })
+
+}
+
 
