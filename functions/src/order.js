@@ -94,7 +94,11 @@ export async function createOrder(itemList, userId) {
 }
 
 
-//export function updateStatus() { }
+export async function updateStatus(oid, status, txnId, paymentMode) {
+    let db = getFirestore();
+    let order = await db.doc(`orders/${oid}`).set({ status, txnId, paymentMode }, { merge: true });
+    return order;
+}
 
 
 
@@ -103,11 +107,11 @@ export async function summarizeDailyOrder() {
 
     let summary = {
         items: [],
-        totalRevenue : 0 ,
-        completedOrders : 0,
-        pendingOrders : 0 ,
-        offlineOrders : 0,
-        onlineOrders : 0
+        totalRevenue: 0,
+        completedOrders: 0,
+        pendingOrders: 0,
+        offlineOrders: 0,
+        onlineOrders: 0
     }
 
     const db = getFirestore();
@@ -120,9 +124,9 @@ export async function summarizeDailyOrder() {
         order.items.forEach(item => {
 
             let index = summary.items.findIndex(_item => _item.id === item.id)
-            if (index !== -1){
-                summary.items[index].quantity = item.qunatity
-                
+            if (index !== -1) {
+                summary.items[index].quantity = item.quantity
+
             }
             else
                 summary.items.push(item)
@@ -133,3 +137,6 @@ export async function summarizeDailyOrder() {
 }
 
 
+function createMonthlyOrderStats() {
+
+}

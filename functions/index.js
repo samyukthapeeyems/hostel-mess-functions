@@ -1,12 +1,12 @@
 import * as functions from "firebase-functions";
 import { initializeApp, cert } from "firebase-admin/app";
-import { createOrder as newOrder } from "./src/order.js";
+import { createOrder as newOrder, updateStatus as updateOrder } from "./src/order.js";
 import { getAuth } from "firebase-admin/auth";
 import { addItemImage, buildItemBundle } from "./src/item.js";
 import { setMetadata, uploadBundle } from "./src/storage.js";
 import { readFile } from 'fs/promises';
-import {initiateTransaction} from './src/payments.js'
-
+import { initiateTransaction } from './src/payments.js'
+import { createWallet, updateBalance } from './src/wallet.js'
 import os from 'node:os'
 import path from 'path';
 import { compressBundle, generateSHA256 } from "./src/util.js";
@@ -36,6 +36,10 @@ export const processUserSignUp = regionalFunction.auth.user().onCreate(async (us
             roles: ["hosteler", "student"]
         })
 
+        let createWalletResult = await createWallet(user.uid)
+        await getAuth().setCustomUserClaims(user.uid, {
+            walletId: createWalletResult.walletId
+        })
 
         return Promise.resolve()
     }
@@ -46,13 +50,15 @@ export const processUserSignUp = regionalFunction.auth.user().onCreate(async (us
 
 })
 
-// async function setRole(uid,roles){
-//     await getAuth().setCustomUserClaims(uid, {
-//         roles: roles
-//     })
-// }
+async function setRole(uid, roles) {
+    await getAuth().setCustomUserClaims(uid, {
+        roles: roles
+    })
+    console.log("roles set")
+}
 
-//setRole("9bKbE6JvgdeZiPbLG324l83U2oF3",["admin"])
+// setRole("9R7XAmEB8BSHKHuTkzuf6HqmY9F2",["admin"])
+
 export const addImage = functions.storage.object().onFinalize(async obj => {
     let newMetadata = {
         cacheControl: "max-age=2592000"
@@ -78,17 +84,48 @@ export const createOrder = regionalFunction.https.onCall(async (data, context) =
         functions.logger.log("CREATE ORDER API RES: ", createOrderResult)
 
 
-        const paymentResponse = await initiateTransaction(
-            createOrderResult.orderId,
-            createOrderResult.totalPrice,
-            context.auth.uid
-        )
+        // const paymentResponse = await initiateTransaction(
+        //     createOrderResult.orderId,
+        //     createOrderResult.totalPrice,
+        //     context.auth.uid
+        // )
 
-        return { order : createOrderResult, payment : paymentResponse}
+        return {
+            order: createOrderResult,
+            //  payment : paymentResponse
+        }
     }
 
     catch (e) {
         functions.logger.error(e)
+        return {
+            message: "unable to create order"
+        }
+    }
+})
+
+
+
+export const initWalletTxn = regionalFunction.https.onCall(async (data, context) => {
+
+    if (!data.transactionType || !data.amount || data.transactionType == "DEBIT" && !data.oid)
+        throw new Error("invalid params")
+    try {
+        if (data.transactionType === "CREDIT" && context.auth.token.roles.includes("admin"))
+            await updateBalance(data.userId, data.amount, data.transactionType)
+        else if (data.transactionType === "DEBIT") {
+            let walletResponse = await updateBalance(context.auth.uid, data.amount, data.transactionType)
+            await updateOrder(data.oid, walletResponse.status , walletResponse.txnId , "WALLET")
+        }
+        return {
+            status: "success"
+        }
+    }
+    catch (e) {
+        return {
+            status: "failed",
+            message: e
+        }
     }
 })
 
@@ -104,7 +141,7 @@ export const createItemBundle = regionalFunction.firestore.document('items/{item
         let file = await readFile(filePath);
         let hash = generateSHA256(file)
         let res = await uploadBundle(file, hash, serviceAccount)
-        functions.logger.log("bundle result",res)
+        functions.logger.log("bundle result", res)
         return res;
     }
     catch (err) {

@@ -2,8 +2,12 @@ import PaytmChecksum from "paytmchecksum";
 import axios from "axios";
 import functions from "firebase-functions";
 
-const PAYTM_MERCHANT_KEY = "SFXi_T7ThBtJ5UKQ";
-const PAYTM_MERCHANT_ID = "xZhVnv93110728543806";
+// const PAYTM_MERCHANT_KEY = "SFXi_T7ThBtJ5UKQ";
+// const PAYTM_MERCHANT_ID = "xZhVnv93110728543806";
+
+
+const PAYTM_MERCHANT_KEY = "gXv&z%HTti_qDK5P";
+const PAYTM_MERCHANT_ID = "SDHMhx13268734456440";
 
 async function generateCheckSum(body) {
   let paytmChecksum = await PaytmChecksum.generateSignature(
@@ -27,21 +31,21 @@ function isCheckSumValid(body, checksum) {
 }
 
 export async function initiateTransaction(oid, amount, uid) {
-  let paytmParams = {};
+    let paytmParams = {};
 
-  paytmParams.body = {
-    requestType: "Payment",
-    mid: PAYTM_MERCHANT_ID,
-    websiteName: "WEBSTAGING",
-    orderId: oid,
-    txnAmount: {
-      value: amount.toFixed(2).toString(),
-      currency: "INR",
-    },
-    userInfo: {
-      custId: uid,
-    },
-  };
+    paytmParams.body = {
+        requestType: "Payment",
+        mid: PAYTM_MERCHANT_ID,
+        websiteName: "WEBSTAGING",
+        orderId: oid,
+        txnAmount: {
+          value: amount.toFixed(2).toString(),
+          currency: "INR",
+        },
+        userInfo: {
+          custId: uid,
+        },
+    };
 
   paytmParams.head = {
     signature: await generateCheckSum(JSON.stringify(paytmParams.body)),
@@ -91,3 +95,6 @@ async function verifyTransaction(oid) {
     throw e;
   }
 }
+
+
+

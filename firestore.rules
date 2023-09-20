@@ -2,17 +2,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   	function hasRoles(auth, allowed_roles){
-        return auth.token.roles in allowed_roles ;
+        return allowed_roles in auth.token.roles  ;
     }
-    
-    
+        
   	match /orders/{orderId} {
     	
-    	allow read : if request.auth.uid == resource.data.user &&
-      								hasRoles(request.auth, ["hosteler", "student"]) ||
-      								hasRoles(request.auth, ["admin"]);
-      
-      //allow write : if reviewFields(request.resource,request.auth);
+  		allow read : if request.auth.uid == resource.data.user;
+      allow write : if hasRoles(request.auth, ["admin"]);
+  	}
+    
+    match /wallet/{walletId} {
+      allow read : if request.auth.uid == resource.data.userId;
+      allow write : if false;
+    }
+    
+    match /transaction/{txn} {
+    	allow read : if request.auth.token.walletId == resource.data.instrumentId || hasRoles(request.auth,["admin"]);
+      allow write : if false;
     }
     
     
@@ -28,16 +34,18 @@ service cloud.firestore {
     
   
     	allow read: if request.auth != null;
-      allow write: if true;
-      
-      //hasRoles(request.auth, ["admin"]) &&
-      	//							reviewFields(request.resource.data);
+      allow write: if hasRoles(request.auth,"admin");
+      //							reviewFields(request.resource.data);
     }
 
 		match /category/{categoryId} {
-  		
       allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow write: if hasRoles(request.auth,"admin");
+  	}
+    
+    match /counter/{counterId} {
+      allow read: if request.auth != null;
+      allow write: if hasRoles(request.auth,"admin");
   	}
   }
   
